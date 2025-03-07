@@ -80,7 +80,14 @@ NoteVal Score::noteValForPosition(Position pos, AccidentalType at, bool& error)
             break;
         }
         const Drumset* ds = instr->drumset();
-        nval.pitch        = m_is.drumNote();
+        nval.pitch = m_is.drumNote();
+        if (!ds->isValid(nval.pitch) || ds->line(nval.pitch) != line) {
+            // Drum note from input state is not valid - fall back to the first valid pitch for this line...
+            const int defaultPitch = ds->defaultPitchForLine(line);
+            if (ds->isValid(defaultPitch)) {
+                nval.pitch = defaultPitch;
+            }
+        }
         if (nval.pitch < 0) {
             error = true;
             return nval;
@@ -447,6 +454,7 @@ Ret Score::putNote(const Position& p, bool replace)
 
         if (ds) {
             stemDirection = ds->stemDirection(nval.pitch);
+            m_is.setVoice(ds->voice(nval.pitch));
         }
         break;
     }
@@ -461,12 +469,12 @@ Ret Score::putNote(const Position& p, bool replace)
 
     expandVoice();
 
-    ChordRest* cr = m_is.cr();
-
     // If there's an overlapping ChordRest at the current input position, shorten it...
-    if (!cr) {
+    if (!m_is.cr()) {
         handleOverlappingChordRest(m_is);
     }
+
+    ChordRest* cr = m_is.cr();
 
     auto checkTied = [&]() {
         if (!cr || !cr->isChord()) {

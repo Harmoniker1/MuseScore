@@ -355,7 +355,7 @@ public:
 
     bool resolveNoteInputParams(int noteIdx, bool addFlag, NoteInputParams& out) const;
 
-    void cmdAddPitch(const EditData&, const NoteInputParams& params, bool addFlag, bool insert);
+    void cmdAddPitch(const NoteInputParams& params, bool addFlag, bool insert);
     void cmdAddPitch(int note, bool addFlag, bool insert);
 
     void cmdAddStretch(double);
@@ -378,6 +378,7 @@ public:
     void cmdAddMeasureRepeat(Measure*, int numMeasures, staff_idx_t staffIdx);
     bool makeMeasureRepeatGroup(Measure*, int numMeasures, staff_idx_t staffIdx);
     void cmdFlip();
+    void cmdFlipHorizontally();
     void resetUserStretch();
     void cmdResetToDefaultLayout();
     void cmdResetBeamMode();
@@ -513,7 +514,6 @@ public:
     void doUndoAddElement(EngravingItem*);
     void removeElement(EngravingItem*);
     void doUndoRemoveElement(EngravingItem*);
-    bool containsElement(const EngravingItem*) const;
 
     Note* addPitch(NoteVal&, bool addFlag, InputState* externalInputState = nullptr);
     Note* addMidiPitch(int pitch, bool addFlag, bool allowTransposition);
@@ -665,6 +665,8 @@ public:
     void setPrinting(bool val) { m_printing = val; }
     virtual bool playlistDirty() const;
     virtual void setPlaylistDirty();
+    bool hasCorruptedMeasures() const { return m_corrupted; }
+    void setHasCorruptedMeasures(bool val) { m_corrupted = val; }
 
     bool isOpen() const;
     void setIsOpen(bool open);
@@ -932,6 +934,7 @@ public:
 
     ChordRest* findCR(Fraction tick, track_idx_t track) const;
     ChordRest* findChordRestEndingBeforeTickInStaff(const Fraction& tick, staff_idx_t staffIdx) const;
+    ChordRest* findChordRestEndingBeforeTickInStaffAndVoice(const Fraction& tick, staff_idx_t staffIdx, voice_idx_t voice) const;
     ChordRest* findChordRestEndingBeforeTickInTrack(const Fraction& tick, track_idx_t trackIdx) const;
     void insertTime(const Fraction& tickPos, const Fraction& tickLen);
 
@@ -1062,6 +1065,8 @@ private:
     Note* getSelectedNote();
     ChordRest* nextTrack(ChordRest* cr, bool skipMeasureRepeatRests = true);
     ChordRest* prevTrack(ChordRest* cr, bool skipMeasureRepeatRests = true);
+    ChordRest* findChordRestEndingBeforeTickInStaffAndVoice(const Fraction& tick, staff_idx_t staffIdx, bool forceVoice,
+                                                            voice_idx_t voice) const;
 
     void addTempo();
     void addMetronome();
@@ -1078,6 +1083,11 @@ private:
     void selectSingle(EngravingItem* e, staff_idx_t staffIdx);
     void selectAdd(EngravingItem* e);
     void selectRange(EngravingItem* e, staff_idx_t staffIdx);
+
+    bool canReselectItem(const EngravingItem* item) const;
+
+    bool trySelectSimilarInRange(EngravingItem* e);
+    bool tryExtendSingleSelectionToRange(EngravingItem* e, staff_idx_t staffIdx);
 
     muse::Ret putNote(const Position&, bool replace);
     void handleOverlappingChordRest(InputState& inputState);
@@ -1158,6 +1168,7 @@ private:
     bool m_showInstrumentNames = true;
     bool m_printing = false;                // True if we are drawing to a printer
     bool m_savedCapture = false;            // True if we saved an image capture
+    bool m_corrupted = false;
 
     ShowAnchors m_showAnchors;
 

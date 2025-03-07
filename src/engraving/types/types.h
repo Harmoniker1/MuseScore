@@ -64,7 +64,6 @@ using semitone_t = int8_t;
 ///   Note: keep in sync with array in TConv
 //-------------------------------------------------------------------
 enum class ElementType : unsigned char {
-    ///.\{
     INVALID = 0,
     BRACKET_ITEM,
     PART,
@@ -109,7 +108,6 @@ enum class ElementType : unsigned char {
     DYNAMIC,
     EXPRESSION,
     BEAM,
-    BEAM_SEGMENT,
     LYRICS,
     FIGURED_BASS,
     FIGURED_BASS_ITEM,
@@ -187,19 +185,13 @@ enum class ElementType : unsigned char {
     BRACKET,
     SEGMENT,
     SYSTEM,
-    COMPOUND,
     CHORD,
     SLUR,
-    ELEMENT,
-    ELEMENT_LIST,
-    STAFF_LIST,
-    MEASURE_LIST,
     HBOX,
     VBOX,
     TBOX,
     FBOX,
     ACTION_ICON,
-    OSSIA,
     BAGPIPE_EMBELLISHMENT,
     STICKING,
     GRACE_NOTES_GROUP,
@@ -218,7 +210,6 @@ enum class ElementType : unsigned char {
     DUMMY,
 
     MAXTYPE
-    ///\}
 };
 
 constexpr size_t TOT_ELEMENT_TYPES = static_cast<size_t>(ElementType::MAXTYPE);
@@ -1204,16 +1195,6 @@ struct std::hash<mu::engraving::InstrumentTrackId>
         std::size_t h2 = std::hash<muse::String> {}(s.instrumentId);
         return h1 ^ (h2 << 1);
     }
-};
-
-enum class ScoreStylePreset : unsigned char {
-    DEFAULT = 0,
-    MSN_16MM,
-    MSN_18MM,
-    MSN_20MM,
-    MSN_22MM,
-    MSN_25MM,
-    MAX_PRESET
 };
 
 #ifndef NO_QT_SUPPORT

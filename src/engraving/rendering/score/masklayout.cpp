@@ -111,7 +111,7 @@ void MaskLayout::maskBarlineForText(BarLine* barline, const std::vector<TextBase
 
     for (TextBase* text : allSystemText) {
         const double fontSizeScaleFactor = text->size() / 10.0;
-        const double collisionPadding = 0.25 * spatium * fontSizeScaleFactor;
+        const double collisionPadding = 0.2 * spatium * fontSizeScaleFactor;
         const bool hasFrame = text->frameType() != FrameType::NO_FRAME;
         const bool useHighResShape = !text->isDynamic() && !text->hasFrame();
         const double maskPadding = hasFrame ? 0.0 : std::clamp(0.5 * spatium * fontSizeScaleFactor, 0.1 * spatium, spatium);
@@ -141,6 +141,7 @@ void MaskLayout::maskBarlineForText(BarLine* barline, const std::vector<TextBase
     }
 
     if (mask.empty()) {
+        barline->mutldata()->setMask(mask);
         return;
     }
 
@@ -155,7 +156,7 @@ void MaskLayout::maskBarlineForText(BarLine* barline, const std::vector<TextBase
 
 void MaskLayout::cleanupMask(const Shape& itemShape, Shape& mask, double minFragmentLength)
 {
-    for (int i = 0; i < mask.size(); ++i) {
+    for (size_t i = 0; i < mask.size(); ++i) {
         ShapeElement& el = mask.elements()[i];
 
         if (el.top() - itemShape.top() < minFragmentLength) {
@@ -172,7 +173,7 @@ void MaskLayout::cleanupMask(const Shape& itemShape, Shape& mask, double minFrag
             el.adjust(0.0, 0.0, minFragmentLength, 0.0);
         }
 
-        for (int j = i + 1; j < mask.size(); ++j) {
+        for (size_t j = i + 1; j < mask.size(); ++j) {
             ShapeElement& otherEl = mask.elements()[j];
             if (intersects(el.left(), el.right(), otherEl.left(), otherEl.right())) {
                 bool otherIsBelow = otherEl.y() > el.y();

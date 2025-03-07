@@ -32,6 +32,7 @@
 #include "abstractelementpopupmodel.h"
 
 #include "engraving/dom/drumset.h"
+#include "engraving/dom/shadownote.h"
 
 using namespace mu;
 using namespace mu::notation;
@@ -120,13 +121,18 @@ void NotationViewInputController::init()
 
 void NotationViewInputController::onNotationChanged()
 {
-    INotationPtr notation = currentNotation();
-    if (!notation) {
+    INotationPtr currNotation = currentNotation();
+    if (!currNotation) {
         return;
     }
 
-    notation->interaction()->selectionChanged().onNotify(this, [this, notation]() {
-        EngravingItem* selectedItem = notation->interaction()->selection()->element();
+    currNotation->interaction()->selectionChanged().onNotify(this, [this]() {
+        const INotationPtr notation = currentNotation();
+        if (!notation) {
+            return;
+        }
+
+        const EngravingItem* selectedItem = notation->interaction()->selection()->element();
         ElementType type = selectedItem ? selectedItem->type() : ElementType::INVALID;
 
         bool noChanges = selectedItem && m_prevSelectedElement == selectedItem;
@@ -665,6 +671,7 @@ void NotationViewInputController::mousePressEvent(QMouseEvent* event)
     ClickContext ctx;
     ctx.logicClickPos = logicPos;
     ctx.hitElement = hitElement;
+    ctx.hitStaff = hitStaffIndex;
     ctx.isHitGrip = viewInteraction()->isHitGrip(logicPos);
     ctx.event = event;
 
@@ -744,8 +751,10 @@ bool NotationViewInputController::needSelect(const ClickContext& ctx) const
 
     if (ctx.event->button() == Qt::LeftButton && ctx.event->modifiers() & Qt::ControlModifier) {
         return true;
+    } else if (ctx.event->button() == Qt::LeftButton && ctx.event->modifiers() & Qt::ShiftModifier) {
+        return !selection->isRange() || !selection->range()->containsItem(ctx.hitElement, ctx.hitStaff);
     } else if (ctx.event->button() == Qt::RightButton && selection->isRange()) {
-        return !selection->range()->containsItem(ctx.hitElement);
+        return !selection->range()->containsItem(ctx.hitElement, ctx.hitStaff);
     } else if (!ctx.hitElement->selected()) {
         return true;
     }
@@ -977,7 +986,18 @@ void NotationViewInputController::mouseReleaseEvent(QMouseEvent* event)
     m_isCanvasDragged = false;
 
     if (interaction->isDragStarted()) {
+        bool isDraggingHairpinSegmentGrip
+            = interaction->isGripEditStarted()
+              && interaction->selection()->element()
+              && interaction->selection()->element()->isHairpinSegment();
+
         interaction->endDrag();
+
+        // When dragging of hairpin ends on a note or rest, open dynamic popup
+        // Check for note or rest happens in Score::addText which is called through addTextToItem in toggleDynamicPopup
+        if (isDraggingHairpinSegmentGrip) {
+            interaction->toggleDynamicPopup();
+        }
     }
 
     if (interaction->isOutgoingDragStarted()) {
@@ -1073,14 +1093,24 @@ void NotationViewInputController::hoverMoveEvent(QHoverEvent* event)
         return;
     }
 
-    PointF oldPos = m_view->toLogical(event->oldPosF());
+    const PointF oldPos = m_view->toLogical(event->oldPosF());
     PointF pos = m_view->toLogical(event->position());
+
+    const ShadowNote* shadowNote = viewInteraction()->shadowNote();
+    if (shadowNote && m_view->elementPopupIsOpen(shadowNote->type())) {
+        // Lock the X position to the shadow note X (prevents the popup from jumping horizontally to other input positions)
+        pos.setX(shadowNote->canvasX());
+    }
 
     if (oldPos == pos) {
         return;
     }
 
     m_view->showShadowNote(pos);
+
+    if (event->modifiers() == Qt::ShiftModifier) {
+        updateShadowNotePopupVisibility();
+    }
 }
 
 bool NotationViewInputController::shortcutOverrideEvent(QKeyEvent* event)
@@ -1106,14 +1136,21 @@ void NotationViewInputController::keyPressEvent(QKeyEvent* event)
             dispatcher()->dispatch("edit-text");
             event->accept();
         }
+    } else if (event->key() == Qt::Key_Shift) {
+        updateShadowNotePopupVisibility();
     }
+
+    updateShadowNotePopupVisibility();
 }
 
 void NotationViewInputController::keyReleaseEvent(QKeyEvent* event)
 {
-    if (event->key() == Qt::Key_Shift) {
-        viewInteraction()->editElement(event);
+    if (event->key() != Qt::Key_Shift) {
+        return;
     }
+
+    viewInteraction()->editElement(event);
+    updateShadowNotePopupVisibility(/*forceHide*/ true);
 }
 
 void NotationViewInputController::inputMethodEvent(QInputMethodEvent* event)
@@ -1340,6 +1377,19 @@ void NotationViewInputController::togglePopupForItemIfSupports(const EngravingIt
     if (AbstractElementPopupModel::supportsPopup(item)) {
         m_view->toggleElementPopup(type, item->canvasBoundingRect());
     }
+}
+
+void NotationViewInputController::updateShadowNotePopupVisibility(bool forceHide)
+{
+    const mu::engraving::ShadowNote* shadowNote = viewInteraction()->shadowNote();
+    if (forceHide || !shadowNote || !AbstractElementPopupModel::supportsPopup(shadowNote)) {
+        m_view->hideElementPopup(ElementType::SHADOW_NOTE);
+        return;
+    }
+
+    RectF noteHeadRect = shadowNote->symBbox(shadowNote->noteheadSymbol());
+    noteHeadRect.translate(shadowNote->canvasPos().x(), shadowNote->canvasPos().y());
+    m_view->showElementPopup(ElementType::SHADOW_NOTE, noteHeadRect);
 }
 
 EngravingItem* NotationViewInputController::resolveStartPlayableElement() const

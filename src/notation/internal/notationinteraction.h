@@ -36,6 +36,7 @@
 
 #include "engraving/dom/engravingitem.h"
 #include "engraving/dom/elementgroup.h"
+#include "engraving/types/symid.h"
 #include "scorecallbacks.h"
 
 namespace mu::engraving {
@@ -63,9 +64,11 @@ public:
     INotationNoteInputPtr noteInput() const override;
 
     // Shadow note
+    mu::engraving::ShadowNote* shadowNote() const override;
     bool showShadowNote(const muse::PointF& pos) override;
     void hideShadowNote() override;
     muse::RectF shadowNoteRect() const override;
+    muse::async::Notification shadowNoteChanged() const override;
 
     // Visibility
     void toggleVisible() override;
@@ -187,6 +190,7 @@ public:
     void swapSelection() override;
     void deleteSelection() override;
     void flipSelection() override;
+    void flipSelectionHorizontally() override;
     void addTieToSelection() override;
     void addLaissezVibToSelection() override;
     void addTiedNoteToChord() override;
@@ -207,6 +211,9 @@ public:
 
     void increaseDecreaseDuration(int steps, bool stepByDots) override;
 
+    void autoFlipHairpinsType(engraving::Dynamic* selDyn) override;
+
+    void toggleDynamicPopup() override;
     bool toggleLayoutBreakAvailable() const override;
     void toggleLayoutBreak(LayoutBreakType breakType) override;
     void moveMeasureToPrevSystem() override;
@@ -323,11 +330,11 @@ private:
     struct ShadowNoteParams {
         mu::engraving::TDuration duration;
         mu::engraving::AccidentalType accidentalType = mu::engraving::AccidentalType::NONE;
-        std::set<SymId> articulationIds;
+        std::set<mu::engraving::SymId> articulationIds;
         mu::engraving::Position position;
     };
 
-    void showShadowNote(mu::engraving::ShadowNote& note, ShadowNoteParams& params);
+    bool showShadowNote(mu::engraving::ShadowNote& note, ShadowNoteParams& params);
 
     bool needStartEditGrip(QKeyEvent* event) const;
     bool handleKeyPress(QKeyEvent* event);
@@ -407,6 +414,7 @@ private:
     void resetDropData();
 
     bool selectInstrument(mu::engraving::InstrumentChange* instrumentChange);
+    void cleanupDrumsetChanges(mu::engraving::InstrumentChange* instrumentChange) const;
 
     void applyDropPaletteElement(mu::engraving::Score* score, mu::engraving::EngravingItem* target, mu::engraving::EngravingItem* e,
                                  Qt::KeyboardModifiers modifiers, muse::PointF pt = muse::PointF(), bool pasteMode = false);
@@ -480,6 +488,8 @@ private:
     INotationUndoStackPtr m_undoStack;
 
     INotationNoteInputPtr m_noteInput = nullptr;
+
+    muse::async::Notification m_shadowNoteChanged;
 
     std::shared_ptr<NotationSelection> m_selection = nullptr;
     muse::async::Notification m_selectionChanged;

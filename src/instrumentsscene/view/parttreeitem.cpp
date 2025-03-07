@@ -30,6 +30,8 @@ using namespace muse;
 PartTreeItem::PartTreeItem(IMasterNotationPtr masterNotation, INotationPtr notation, QObject* parent)
     : AbstractLayoutPanelTreeItem(LayoutPanelItemType::PART, masterNotation, notation, parent), Injectable(iocCtxForQmlObject(this))
 {
+    setIsSelectable(true);
+
     listenVisibilityChanged();
 }
 
@@ -54,7 +56,6 @@ void PartTreeItem::init(const notation::Part* masterPart)
     setSettingsEnabled(partExists);
     setIsExpandable(partExists);
     setIsRemovable(partExists);
-    setIsSelectable(partExists);
 
     m_part = part;
     m_isInited = true;
@@ -236,8 +237,8 @@ void PartTreeItem::replaceInstrument()
 
 void PartTreeItem::resetAllFormatting()
 {
-    std::string title = muse::trc("layout", "Are you sure you want to reset all formatting?");
-    std::string body = muse::trc("layout", "This action can not be undone");
+    std::string title = muse::trc("layoutpanel", "Are you sure you want to reset all formatting?");
+    std::string body = muse::trc("layoutpanel", "This action can not be undone");
 
     IInteractive::Button button = interactive()->question(title, body, {
         IInteractive::Button::No,

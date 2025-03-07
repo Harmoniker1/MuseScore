@@ -94,8 +94,7 @@ void MasterNotationParts::setParts(const PartInstrumentList& partList, const Sco
         impl->setBracketsAndBarlines();
     }
 
-    updatePartList();
-    updateSystemObjectStaves();
+    updatePartsAndSystemObjectStaves();
     endGlobalEdit();
 }
 
@@ -262,13 +261,9 @@ void MasterNotationParts::addSystemObjects(const muse::IDList& stavesIds)
         return;
     }
 
-    startGlobalEdit(TranslatableString("undoableAction", "Add system objects"));
+    startGlobalEdit(TranslatableString("undoableAction", "Add system markings"));
 
     NotationParts::addSystemObjects(stavesIds);
-
-    for (INotationPartsPtr parts : excerptsParts()) {
-        parts->addSystemObjects(stavesIds);
-    }
 
     endGlobalEdit();
 }
@@ -279,20 +274,16 @@ void MasterNotationParts::removeSystemObjects(const muse::IDList& stavesIds)
         return;
     }
 
-    startGlobalEdit(TranslatableString("undoableAction", "Remove system objects"));
+    startGlobalEdit(TranslatableString("undoableAction", "Remove system markings"));
 
     NotationParts::removeSystemObjects(stavesIds);
-
-    for (INotationPartsPtr parts : excerptsParts()) {
-        parts->removeSystemObjects(stavesIds);
-    }
 
     endGlobalEdit();
 }
 
 void MasterNotationParts::moveSystemObjects(const muse::ID& sourceStaffId, const muse::ID& destinationStaffId)
 {
-    startGlobalEdit(TranslatableString("undoableAction", "Move system objects"));
+    startGlobalEdit(TranslatableString("undoableAction", "Move system markings"));
 
     NotationParts::moveSystemObjects(sourceStaffId, destinationStaffId);
 

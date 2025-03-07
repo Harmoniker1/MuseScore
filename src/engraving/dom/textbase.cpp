@@ -3364,7 +3364,7 @@ bool TextBase::isNonTextualEditAllowed(EditData& ed) const
         Key_Down
     };
 
-    return muse::contains(ARROW_KEYS, static_cast<KeyboardKey>(ed.key));
+    return muse::contains(ARROW_KEYS, static_cast<KeyboardKey>(ed.key)) && !(ed.modifiers & AltModifier);
 }
 
 void TextBase::checkMeasureBoundariesAndMoveIfNeed()
@@ -3457,7 +3457,7 @@ void TextBase::moveSnappedItems(Segment* newSeg, Fraction tickDiff) const
         if (itemBefore->isTextBase() && itemBefore->parent() != newSeg) {
             score()->undoChangeParent(itemBefore, newSeg, itemBefore->staffIdx());
             toTextBase(itemBefore)->moveSnappedItems(newSeg, tickDiff);
-        } else if (itemBefore->isTextLineSegment()) {
+        } else if (itemBefore->isTextLineBaseSegment()) {
             TextLineBase* textLine = ((TextLineBaseSegment*)itemBefore)->textLineBase();
             if (textLine->tick2() != newSeg->tick()) {
                 textLine->undoMoveEnd(tickDiff);

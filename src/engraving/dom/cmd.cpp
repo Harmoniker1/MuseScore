@@ -49,6 +49,7 @@
 #include "harmony.h"
 #include "key.h"
 #include "laissezvib.h"
+#include "layoutbreak.h"
 #include "linkedobjects.h"
 #include "lyrics.h"
 #include "masterscore.h"
@@ -1444,8 +1445,8 @@ bool Score::makeGap1(const Fraction& baseTick, staff_idx_t staffIdx, const Fract
             continue;
         }
         Fraction tick = baseTick + Fraction::fromTicks(voiceOffset[track - strack]);
-        Measure* m   = tick2measure(tick);
-        if ((track % VOICES) && !m->hasVoices(staffIdx)) {
+        Measure* tm   = tick2measure(tick);
+        if ((track % VOICES) && !tm->hasVoices(staffIdx)) {
             continue;
         }
 
@@ -1808,7 +1809,7 @@ void Score::changeCRlen(ChordRest* cr, const Fraction& dstF, bool fillWithRest)
     connectTies();
 
     if (elementToSelect) {
-        if (containsElement(elementToSelect)) {
+        if (canReselectItem(elementToSelect)) {
             select(elementToSelect, SelectType::SINGLE, 0);
         }
     }
@@ -2771,7 +2772,7 @@ void Score::cmdResetMeasuresLayout()
         }
 
         for (EngravingItem* item : mb->el()) {
-            if (item->isLayoutBreak()) {
+            if (item->isLayoutBreak() && !toLayoutBreak(item)->isSectionBreak()) {
                 itemsToRemove.push_back(item);
             }
         }
@@ -2948,6 +2949,7 @@ EngravingItem* Score::move(const String& cmd)
         case ElementType::HBOX:           // fallthrough
         case ElementType::VBOX:           // fallthrough
         case ElementType::TBOX:
+        case ElementType::FBOX:
             box = toBox(el);
             break;
         default:                                // on anything else, return failure
@@ -4299,6 +4301,12 @@ void Score::cmdRealizeChordSymbols(bool literal, Voicing voicing, HDuration dura
             note->setNval(nval, tick);
         }
 
+        if (!seg->isChordRestType()) {
+            Segment* newCrSeg = seg->measure()->undoGetSegment(SegmentType::ChordRest, seg->tick());
+            newCrSeg->setTicks(seg->ticks());
+            seg = newCrSeg;
+        }
+
         setChord(this, seg, h->track(), chord, duration);     //add chord using template
         delete chord;
     }
@@ -4618,6 +4626,7 @@ void Score::cmdToggleLayoutBreak(LayoutBreakType type)
             case ElementType::HBOX:
             case ElementType::VBOX:
             case ElementType::TBOX:
+            case ElementType::FBOX:
                 mb = toMeasureBase(el);
                 break;
             default: {
@@ -5000,7 +5009,7 @@ bool Score::resolveNoteInputParams(int note, bool addFlag, NoteInputParams& out)
 //   cmdAddPitch
 ///   insert note or add note to chord
 //---------------------------------------------------------
-void Score::cmdAddPitch(const EditData& ed, const NoteInputParams& params, bool addFlag, bool insert)
+void Score::cmdAddPitch(const NoteInputParams& params, bool addFlag, bool insert)
 {
     InputState& is = inputState();
     if (!is.isValid()) {
@@ -5014,26 +5023,9 @@ void Score::cmdAddPitch(const EditData& ed, const NoteInputParams& params, bool 
     if (ds) {
         is.setDrumNote(params.drumPitch);
         is.setVoice(ds->voice(params.drumPitch));
-
-        if (is.segment()) {
-            Segment* seg = is.segment();
-            while (seg) {
-                if (seg->element(is.track())) {
-                    break;
-                }
-                seg = seg->prev(SegmentType::ChordRest);
-            }
-            if (seg) {
-                is.setSegment(seg);
-            } else {
-                is.setSegment(is.segment()->measure()->first(SegmentType::ChordRest));
-            }
-        }
     }
 
     cmdAddPitch(params.step, addFlag, insert);
-
-    ed.view()->adjustCanvasPosition(is.cr());
 }
 
 void Score::cmdAddPitch(int step, bool addFlag, bool insert)
